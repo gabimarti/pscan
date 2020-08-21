@@ -44,6 +44,9 @@ So, while still being able to use NMAP, I have created a simple program to scan 
     
     Simple scanning of specific ports on a network.
     
+    
+ ![pscan screenshot](pscan.png)
+    
  ### Contact
 
 Any suggestion or contribution is welcome. Feel free to contact me if you have any comments.
