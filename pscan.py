@@ -25,11 +25,11 @@ import socket
 import threading
 import time
 import urllib.request
+from urllib.error import HTTPError, URLError
 
 ########################################################
 # CONSTANTS
 ########################################################
-from urllib.error import HTTPError, URLError
 
 BANNER = """ 
  ______   ______                   
