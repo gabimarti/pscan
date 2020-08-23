@@ -14,35 +14,41 @@ So, while still being able to use NMAP, I have created a simple program to scan 
 
 
     usage: pscan.py [-h] [-r RANGE] [-w] [-p PORTS [PORTS ...]] [-m MESSAGE] [-e]
-                    [-t TIMEOUT] [-v {0,1,2}]
-    
-    Python Multithread Network Scanner v0.0.1
+                [-t TIMEOUT] [-i DELAYBETWEENIP] [-o DELAYBETWEENPORT]
+                [-d MAXTHREADS] [-v {0,1,2,3,4,5}] [-l]
+
+    Python Multithread Network Scanner v0.1.0
     
     optional arguments:
       -h, --help            show this help message and exit
       -r RANGE, --range RANGE
-                            Specify the network range in CIDR format. If not
-                            provided, an attempt is made to autodetect a local
-                            class C range. Example: 192.168.1.0/24
-      -w, --wanauto         If this option is set (and no -r has been specified),
-                            an automatic class C range will be set for the current
-                            Wan IP.
+                            Specify the network range in CIDR format. If not provided, an attempt is made to autodetect a local class C range. Example: 192.168.1.0/24
+      -w, --wanauto         If this option is set (and no -r has been specified), an automatic class C range will be set for the current Wan IP.
       -p PORTS [PORTS ...], --ports PORTS [PORTS ...]
-                            Specify a list of ports to scan. Default value: [21,
-                            22, 25, 80, 110, 3389, 9100]
+                            Specify a list of ports to scan. Default value: [21, 22, 25, 80, 110, 3389, 9100]
       -m MESSAGE, --message MESSAGE
-                            Message to send to host. If empty (-m ''), then not
-                            message is sent.
-      -e, --waitresponse    Wait response from host after sending Message (if
-                            sent). If this is enable then only ports with response
-                            are shown Default value: False
+                            Message to send to host. If empty (-m ''), then not message is sent.
+      -e, --waitresponse    Wait response from host after sending Message (if sent). If this is enable then only ports with response are shown Default value: False
       -t TIMEOUT, --timeout TIMEOUT
-                            Timeout in seconds on port connection. Default value:
-                            2
-      -v {0,1,2}, --verbose {0,1,2}
-                            Increase output verbosity. Default value: 0
+                            Timeout in seconds on port connection. Default value: 2
+      -i DELAYBETWEENIP, --delaybetweenip DELAYBETWEENIP
+                            Delay in milliseconds (enter integer) between IP threads. Default value: 20
+      -o DELAYBETWEENPORT, --delaybetweenport DELAYBETWEENPORT
+                            Delay in milliseconds (enter integer) between PORT threads. Default value: 5
+      -d MAXTHREADS, --maxthreads MAXTHREADS
+                            Maximum number of simultaneous threads. Default value: 16384
+      -v {0,1,2,3,4,5}, --verbose {0,1,2,3,4,5}
+                            Debug verbose to console when testing.
+                            Default value: 0
+                             0 = No verbose
+                             1 = CRITICAL
+                             2 = ERROR
+                             3 = WARNING
+                             4 = INFO
+                             5 = DEBUG
+      -l, --logtofile       If set, log messages are saved in a file named pscan.log instead of on screen.
     
-    Simple scanning of specific ports on a network.
+    Simple scanning of specific ports in a network range.
     
     
  ![pscan screenshot](pscan.png)
