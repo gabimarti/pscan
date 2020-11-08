@@ -14,7 +14,7 @@
 # GitHub:           https://github.com/gabimarti
 # Created:          20/08/2020
 # License:          GPLv3
-# Version:          0.1.0
+# Version:          0.1.1
 # -----------------------------------------------------------------------------------------------------------
 
 
@@ -43,7 +43,7 @@ BANNER = """
 | |      _____) | (___/ ___ | | | |
 |_|     (______/ \____)_____|_| |_| """
 APPNAME = 'Python Multithread Network Scanner'      # Just a name
-VERSION = 'v0.1.0'                                  # Version
+VERSION = 'v0.1.1'                                  # Version
 SERVER_ACCEPT_TIMEOUT = 0.1
 PORT_LIST_SCAN = [21, 22, 25, 80, 110, 3389, 9100]  # Default list of ports to Scan. For testing multiple ports
 BUFFER_SIZE = 4096                                  # Buffer size
@@ -89,7 +89,7 @@ class HostScan(threading.Thread):
         self.lock = threading.Lock()                        # thread lock
 
     def scan(self, host, port):
-        global total_threads_launched, total_current_threads_running, max_concurrent_threads, keyloggers_found
+        global total_threads_launched, total_current_threads_running, max_concurrent_threads
 
         # Increment running threads counter and max concurrent threads
         self.lock.acquire()
