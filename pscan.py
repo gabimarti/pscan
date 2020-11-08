@@ -7,7 +7,6 @@
 #                   Search for open ports in a network range.
 #                   Based on the demonseye-net-search.py module from my "Demons eye keylogger" keylogger poc
 #                   https://github.com/gabimarti/Demons-eye-keylogger
-#                   a small server can be activated to receive the keys.
 #
 # Author:           Gabriel Marti Fuentes
 # email:            gabimarti at gmail dot com
