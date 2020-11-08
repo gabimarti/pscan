@@ -98,7 +98,7 @@ class HostScan(threading.Thread):
         if total_current_threads_running > max_concurrent_threads:
             max_concurrent_threads = total_current_threads_running
         self.lock.release()
-
+        response = ''
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)       # ipv4 (AF_INET) tcp (SOCK_STREAM)
             s.settimeout(self.timeout)                                  # Sets timeout
